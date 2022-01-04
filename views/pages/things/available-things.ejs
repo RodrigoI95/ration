@@ -1,0 +1,167 @@
+<div id="available-things" v-cloak>
+
+<h1>Things </h1>
+<p>View available items to borrow or upload </p>
+<button class="btn btn-outline-primary" @click="clickAddthing()">Add an item</button>
+
+<ul>
+  <li v-for="thing in things" >
+    <div >{{thing.label}}</div>
+   
+    <div v-if="thing.Owner.id === me.id">Mine</div>
+    <div v-else>{{thing.Owner.fullName}}</div>
+
+    <svg v-if="thing.Owner.id !== me.id  && thing.borrowedBy !== me.id" @click="clickBorrowthing(thing.id)" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-up-right borrow" viewBox="0 0 16 16">
+      <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/>
+      <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/>
+    </svg>
+
+    <div class="dropdown borrow" v-else-if="thing.Owner.id !== me.id && thing.borrowedBy === me.id" xmlns="http://www.w3.org/2000/svg">
+      <button class="btn btn-secondary dropdown-toggle" 
+      type="button" 
+      id="dropdownMenuButton" 
+      data-toggle="dropdown" 
+      aria-haspopup="true" 
+      aria-expanded="false"></button>
+      <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+        <small class="dropdown-item" href="#" @click = "clickGiveBackThing(thing.id)">Give this back</small>
+        <small class="dropdown-item" href="#" @click = "clickContactOwnerThing(thing.id)">Contact owner</small>
+      </div>
+    </div>
+
+    <svg  v-else-if="thing.Owner.id === me.id  && thing.borrowedBy === null" @click = "clickDeleteThing(thing.id)" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash borrow" viewBox="0 0 16 16">
+      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+      <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+    </svg>
+    <div class="dropdown borrow" v-else xmlns="http://www.w3.org/2000/svg">
+      <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+       
+      </button>
+      <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+        <small class="dropdown-item" href="#" @click = "clickDeleteThing(thing.id)">Delete</small>
+        <small class="dropdown-item" href="#" @click = "clickMarkAsReturnedThing(thing.id)">Mark as returned</small>
+        <small class="dropdown-item" href="#" click = "clickContactOwnerThing(thing.id)">Contact</small>
+      </div>
+    </div>
+
+    
+  </li>
+</ul>
+
+<% /*Confirm delete thing*/%>
+<modal v-if="confirmDeleteThingModalOpen && selectedThing" v-cloak key="delete" 
+@close="closeDeleteThingModal()">
+  <ajax-form action="destroyOneThing" :syncing.sync="syncing"
+    :cloud-error.sync="cloudError"
+    :handle-parsing="handleParsingDeleteThingForm"
+    @submitted="submittedDeleteThingForm()"
+    >
+    <h1>Are you sure you want to delete this item?</h1>
+    <span>This item will no longer be available</span>
+    <button data-dismiss="modal" type="button" class="btn btn-light mr-1">Nevermind</button>
+    <button type="submit" class="btn btn-danger ml-1">Delete</button>
+  </ajax-form>
+</modal>
+
+<% /*Upload an item*/%>
+<modal v-if="uploadThingModalOpen" v-cloak key="new" 
+@close="closeUploadThingModal()">
+  <ajax-form action="uploadThing" :syncing.sync="syncing"
+    :cloud-error.sync="cloudError"
+    :handle-parsing="handleParsingUploadThingForm"
+    @submitted="submittedUploadThingForm($event)"
+    >
+    <h1>Upload a new thing</h1>
+    <div>
+      <p>Add a photo:</p>
+      <img alt="photo to add" src=""/>
+    </div>
+    <div>
+      <label for="myfile">Select a file:</label>
+      <input type="file" 
+       :disable="syncing" 
+       accept="image/*"
+       class="file-input"
+       @change="changeFileInput($event.target.files)"
+       />
+      <p>Add a photo of the ite that clearly shows it.</p>
+    </div>
+    <div>
+      <p>What is it?</p>
+      <input type="text" class="form-control" name="label" placeholder="Label"
+      @change="changeLabelInput($event.target.value)"/>
+    </div>
+    <div>
+      <button class="btn btn-light">Cancel</button>
+      <button class="btn btn-primary">Share item</button>
+    </div>
+  </ajax-form>
+</modal>
+
+
+<% /*Borrow  thing modal*/%>
+<modal v-if="borrowThingModalOpen" v-cloak key="borrow" 
+@close="closeBorrowThingModal()">
+  <ajax-form action="borrowThing" :syncing.sync="syncing"
+    :cloud-error.sync="cloudError"
+    :handle-parsing="handleParsingBorrowThingForm"
+    @submitted="submittedBorrowThingForm()"
+    >
+    <h1>You are borrowing {{this.selectedBorrowThing.label}}</h1>
+    <input type="date" class="form-control" name="label" placeholder="Label"
+    @change="changeDateInput($event.target.value)">
+    <button data-dismiss="modal" type="button" class="btn btn-light mr-1">Nevermind</button>
+    <button type="submit" class="btn btn-danger ml-1">Borrow</button>
+  </ajax-form>
+</modal>
+
+<% /*retuned  thing modal*/%>
+<modal v-if="markAsReturnedModalOpen" v-cloak key="borrow" 
+@close="closemarkAsReturnedModal()">
+  <ajax-form action="markAsRetuned" :syncing.sync="syncing"
+    :cloud-error.sync="cloudError"
+    :handle-parsing="handleParsingmarkAsReturnedForm"
+    @submitted="submittedMarkAsReturnedForm()"
+    >
+    <h1>Has {{this.thingToMarkAsReturned.borrowedBy}} returned {{this.thingToMarkAsReturned.label}} ?</h1>
+    <button data-dismiss="modal" type="button" class="btn btn-light mr-1">No</button>
+    <button type="submit" class="btn btn-danger ml-1">Yes</button>
+  </ajax-form>
+</modal>
+
+<% /*give back  thing modal*/%>
+<modal v-if="giveBackModalOpen" v-cloak key="giveBack" 
+@close="closeGiveBackModal()">
+  <ajax-form action="giveBack" :syncing.sync="syncing"
+    :cloud-error.sync="cloudError"
+    :handle-parsing="handleParsingGiveBackForm"
+    @submitted="submittedGiveBackForm()"
+    >
+    <h1>Return {{this.thingToGiveBack.label}} ?</h1>
+    <label>When can you give this back?</label>
+    <input type="text" placeholder="On sunday" class="form-control" @change="changeGiveBackTextInput($event.target.value)"/>
+    <button data-dismiss="modal" type="button" class="btn btn-light mr-1">Cancel</button>
+    <button type="submit" class="btn btn-danger ml-1">Return</button>
+  </ajax-form>
+</modal>
+
+
+<% /*Contact  thing owner modal*/%>
+<modal v-if="contactOwnerModalOpen" v-cloak key="giveBack" 
+@close="closeContactOwnerModal()">
+  <ajax-form action="contactOwner" :syncing.sync="syncing"
+    :cloud-error.sync="cloudError"
+    :handle-parsing="handleParsingContactOwnerForm"
+    @submitted="submittedContactOwnerForm()"
+    >
+    <h1>Write a message for the owner ?</h1>
+    <input type="text" placeholder="On sunday" class="form-control" @change="changeContactOwnerTextInput($event.target.value)"/>
+    <button data-dismiss="modal" type="button" class="btn btn-light mr-1">Cancel</button>
+    <button type="submit" class="btn btn-danger ml-1">Send</button>
+  </ajax-form>
+</modal>
+
+</div>
+
+
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
